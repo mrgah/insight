@@ -14,20 +14,31 @@ from subprocess import Popen,PIPE,STDOUT
 import re
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
-# import sys
-# from io import StringIO
-# import tensorflow as tf
-# import numpy as np
-#
-# from label_image import load_graph, read_tensor_from_image_file
+import config
+
+def my_address_check(address_maybe):
+
+    street_re = re.compile(r'[-\d]+ [\w\s]+')
+
+    state_zip_re = re.compile(r'[A-Z]{2} \d{5}')
+
+    address_list = address_maybe.split(',')
+
+    if re.match(street_re, address_list[0].strip()) and re.match(state_zip_re, address_list[2].strip()):
+        print(address_maybe.strip(), "looks like an address")
+        return True
+
+    else:
+        print("hmm...", address_maybe.strip(), "does not appear to be a full address")
+        return False
 
 
-# input_address = "3623 Packard St, Parkersburg, WV 26104"
+
 
 def scrape_zillow_data(input_address):
     session = requests.Session()
 
-    zillow_data = ZillowWrapper()
+    zillow_data = ZillowWrapper(config.zillow)
 
     m = re.search(r'[0-9]{5}',input_address)
 
@@ -43,7 +54,6 @@ def scrape_zillow_data(input_address):
         "Accept": "text/html,application/xhtml+xml,application/xml; q=0.9,image/webp,*/*;q=0.8"}
 
     url = "https://www.zillow.com/homedetails/" + zillow_id + "_zpid/?fullpage=true"
-        # "https://www.zillow.com/homedetails/522-S-1200-E-B-Salt-Lake-City-UT-84102/2093097341_zpid/?fullpage=true"
 
     facts = {}
 
@@ -96,14 +106,10 @@ def scrape_zillow_data(input_address):
 
     return facts
 
-# scrape_zillow_data('2502 Leon St #512, Austin, TX 78705')
-
 def get_geocode_coords(input_address):
-    params = {'key': , 'address': input_address}
+    params = {'key': config.geocode, 'address': input_address}
 
     encoded_query = urlencode(params)
-
-    # print(encoded_query)
 
     geo_query = "https://maps.googleapis.com/maps/api/geocode/json?" + encoded_query
 
@@ -111,13 +117,7 @@ def get_geocode_coords(input_address):
 
     geo_response = http_response.read()
 
-    # geo_response = '{ "results" : [ { "address_components" : [ { "long_name" : "2023", "short_name" : "2023", "types" : [ "street_number" ] }, { "long_name" : "Kentwell Road", "short_name" : "Kentwell Rd", "types" : [ "route" ] }, { "long_name" : "North Mountview", "short_name" : "North Mountview", "types" : [ "neighborhood", "political" ] }, { "long_name" : "Columbus", "short_name" : "Columbus", "types" : [ "locality", "political" ] }, { "long_name" : "Franklin County", "short_name" : "Franklin County", "types" : [ "administrative_area_level_2", "political" ] }, { "long_name" : "Ohio", "short_name" : "OH", "types" : [ "administrative_area_level_1", "political" ] }, { "long_name" : "United States", "short_name" : "US", "types" : [ "country", "political" ] }, { "long_name" : "43221", "short_name" : "43221", "types" : [ "postal_code" ] }, { "long_name" : "1905", "short_name" : "1905", "types" : [ "postal_code_suffix" ] } ], "formatted_address" : "2023 Kentwell Rd, Columbus, OH 43221, USA", "geometry" : { "location" : { "lat" : 40.019841, "lng" : -83.066971 }, "location_type" : "ROOFTOP", "viewport" : { "northeast" : { "lat" : 40.0211899802915, "lng" : -83.06562201970848 }, "southwest" : { "lat" : 40.0184920197085, "lng" : -83.06831998029151 } } }, "place_id" : "ChIJGRAYIAiOOIgRhatypjtzW0s", "types" : [ "street_address" ] } ], "status" : "OK" }'
-
     json_data = json.loads(geo_response)
-
-    # print(json_data)
-    #
-    # print(json_data['results'])
 
     lat = json_data['results'][0]['geometry']['location']['lat']
 
@@ -125,13 +125,7 @@ def get_geocode_coords(input_address):
 
     geo_coords = (lat,lng)
 
-    # print(urlencode({'loc':geo_coords}))
-
     return geo_coords
-
-# print(get_geocode_coords(input_address))
-
-# dumb_str = (40.019841, -83.066971)
 
 def get_sidewalk_view(input_coords, image_path):
     """ accepts a tuple with coordinates and returns a google streetview image"""
@@ -139,7 +133,7 @@ def get_sidewalk_view(input_coords, image_path):
     geo_string = ','.join(map(str,input_coords))
     print(geo_string)
 
-    params = {'size':'1000x1000','location': geo_string , 'pitch': '-20','source':'outdoor'}
+    params = {'size':'1000x1000','location': geo_string , 'pitch': '-20', 'source':'outdoor'}
 
     encoded_query = urlencode(params)
 
@@ -153,9 +147,9 @@ def get_sidewalk_view(input_coords, image_path):
 
     image = http_response.read()
 
-    image_name = encoded_query.replace('&','_') + ".jpg"
+    image_name = encoded_query.replace('&', '_') + ".jpg"
 
-    print("image_name",image_name)
+    print("image_name", image_name)
 
     image_full_path = os.path.join(image_path, image_name)
 
@@ -195,8 +189,6 @@ def get_3step_view(input_coords):
 
     return image_name
 
-# get_sidewalk_view(dumb_str)
-
 
 def classify_image(image_file,model_file,output_labels='output_labels.txt'):
 
@@ -213,40 +205,6 @@ def classify_image(image_file,model_file,output_labels='output_labels.txt'):
     print(result)
     return result
 
-    # result = os.system(command_string, shell=True)
-
-    # input_layer = "input"
-    # output_layer = "InceptionV3/Predictions/Reshape_1"
-    #
-    # graph = load_graph(model_file)
-    #
-    # input_name = "import/" + input_layer
-    # output_name = "import/" + output_layer
-    # input_operation = graph.get_operation_by_name(input_name)
-    # output_operation = graph.get_operation_by_name(output_name)
-    #
-    #
-    # t = read_tensor_from_image_file(
-    #     image_file,
-    #     299,
-    #     299,
-    #     0,
-    #     255)
-    #
-    # output_operation = graph.get_operation_by_name(output_name)
-    #
-    # with tf.Session(graph=graph) as sess:
-    #     with tf.Session(graph=graph) as sess:
-    #         results = sess.run(output_operation.outputs[0], {
-    #             input_operation.outputs[0]: t
-    #         })
-    # results = np.squeeze(results)
-    #
-    # top_k = results.argsort()[-1:]
-    # labels = load_labels(label_file)
-    # print(labels[0], top_k[0])
-
-# classify_image('moms.jpg','sidewalk_graph.pb','sidewalk_labels.txt')
 
 def zip_apt_scraper(zip, no_listing_pages=5):
 
@@ -274,14 +232,18 @@ def zip_apt_scraper(zip, no_listing_pages=5):
 
         max_index = 1
 
-        for link in bsObj.find(class_="paging").findAll("a"):
-            if 'href' in link.attrs and link.attrs['href'] != 'javascript:void(0)':
+        try:
+            for link in bsObj.find(class_="paging").findAll("a"):
+                if 'href' in link.attrs and link.attrs['href'] != 'javascript:void(0)':
 
-                raw_link = link.attrs['href']
-                base_link, new_index, _ = raw_link.rsplit('/', 2)
+                    raw_link = link.attrs['href']
+                    base_link, new_index, _ = raw_link.rsplit('/', 2)
 
-                if int(new_index) > max_index:
-                    max_index = int(new_index)
+                    if int(new_index) > max_index:
+                        max_index = int(new_index)
+        except:
+            print("could not find paging links")
+            raise
 
         return base_link, max_index
 
@@ -293,32 +255,33 @@ def zip_apt_scraper(zip, no_listing_pages=5):
     for i in range(no_listing_pages):
         time.sleep(random.random())
 
+        # link = base_link + "/" + str(i) + "/"
+
+        link = '/'.join([base_link, str(i + 1)])
+        print(link)
+
         try:
             print("requesting page " + str(i + 1) + " of results...")
+            req = session.get(link, headers=headers)
         except:
             print("problem requesting url")
             pass
 
-        # bsObj = BeautifulSoup(req.text, "lxml")
+        bsObj = BeautifulSoup(req.text, "lxml")
 
         try:
-            new_locations = bsObj.findAll("div", {"class":"location"})
+            new_locations = bsObj.findAll("div", {"class": "location"})
             for location in new_locations:
+                if my_address_check(location.get_text()):
+                    new_rentals.append(location.get_text())
 
-                print(location.previous_sibling, location, "\n")
+                # location.previous_sibling
         except:
+            print("could not find location elements...")
             pass
 
-        # print(new_locations)
+        rentals.extend(new_rentals)
 
-        link_list = []
-
-
-
-        print(link_list)
-
-        # locations.append(new_locations)
-
-    # print(locations)
+    return rentals
 
 zip_apt_scraper(19146)

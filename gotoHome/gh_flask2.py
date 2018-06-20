@@ -4,19 +4,16 @@ from flask_moment import Moment
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import InputRequired,ValidationError
-from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, scrape_zillow_data, get_3step_view
+from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, scrape_zillow_data, get_3step_view, my_address_check
 import os
+import config
 
 app = Flask(__name__, instance_path='/Users/mrgah/Dropbox/work/code/insight/goto_home/')
-app.config['SECRET_KEY'] =
+app.config['SECRET_KEY'] = config.flask_secret_key
 
 bootstrap = Bootstrap(app)
 moment = Moment(app)
 
-def my_address_check(form, field):
-    # write address validator for real at some point...
-    if len(field.data) < 5:
-        raise ValidationError('I suspect ' + field.data + ' is not a complete addresss')
 
 class AddressForm(FlaskForm):
     address = StringField('Please enter an address:', [InputRequired(), my_address_check])
