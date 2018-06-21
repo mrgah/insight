@@ -10,7 +10,7 @@ from werkzeug.contrib.cache import FileSystemCache
 from collections import namedtuple
 
 from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, \
-                    scrape_zillow_data, get_3step_view, my_address_check, get_address_features
+                    scrape_zillow_data, get_3step_view, my_address_check, get_address_features, get_address_id
 import os
 from .config import flask_secret_key, geocode, zillow
 
@@ -52,16 +52,26 @@ def index():
 def results():
     session['address_features'] = get_address_features(session['address'], 'street_address', 'city', 'state', 'zip')
 
-    session['address_id'] = re.sub(r'\s+', '_', session['address_features']['street_address'].strip()).lower() + '_' + [session['zip'] + '.jpg'
+    session['address_id'] = get_address_id(address_features)
 
-    try:
-        session['zillow_data'] = scrape_zillow_data(session['address'])
-    except:
-        pass
-    session['geo_coords'] = get_geocode_coords(session['address'])
-    # session['geo_coords'] = (40.019841, -83.066971)
-    # session['geo_coords'] = (30.2808142,-97.754020799999)
-    session['image_name'] = get_sidewalk_view(session['geo_coords'], 'static', session['address_features'])
+    def check_if_images(address_id):
+        sidewalk_image = address_id + '_walk.jpg'
+        step_image = address_id + '_step.jpg'
+
+
+    def check_cached_results(address_id):
+        rv = cache.get(address_id)
+        if rv is None:
+            try:
+                rv['zillow_data'] = scrape_zillow_data(session['address'])
+            except:
+                pass
+
+            rv['geo_coords'] = get_geocode_coords(session['address'])
+
+            rv['sidewalk']
+
+    session['image_name'] = get_sidewalk_view(session['geo_coords'], 'static', get_address_id(session['address_features']))
 
     session['step_image_name'] = get_3step_view(session['geo_coords'])
 

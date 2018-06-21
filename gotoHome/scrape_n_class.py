@@ -17,7 +17,7 @@ import re
 
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
-from .config import zillow, geocode
+from config import zillow, geocode
 
 def get_address_features(input_address, *args):
 
@@ -187,7 +187,14 @@ def get_geocode_coords(input_address):
 
     return geo_coords
 
-def get_sidewalk_view(input_coords, image_path, address_features):
+def get_address_id(address_features):
+    """returns unique identifier for a particular address"""
+
+    address_id = re.sub(r'\s+', '_', address_features['street_address'].strip()).lower() + '_' + address_features['zip']
+
+    return address_id
+
+def get_sidewalk_view(input_coords, image_path, address_id):
     """ accepts a tuple with coordinates and returns a google streetview image"""
 
     geo_string = ','.join(map(str, input_coords))
@@ -209,9 +216,7 @@ def get_sidewalk_view(input_coords, image_path, address_features):
 
     # image_name = encoded_query.replace('&', '_') + ".jpg"
 
-    encoded_street_address = re.sub(r'\s+', '_', address_features['street_address'])
-
-    image_name = encoded_street_address + '_' + address_features['zip'] + '.jpg'
+    image_name = address_id + '_walk.jpg'
 
     print("image_name", image_name)
 
@@ -222,7 +227,7 @@ def get_sidewalk_view(input_coords, image_path, address_features):
 
     return image_name
 
-def get_3step_view(input_coords):
+def get_3step_view(input_coords, address_id):
     """ accepts a tuple with coordinates and returns a google streetview image"""
 
     geo_string = ','.join(map(str,input_coords))
@@ -242,7 +247,7 @@ def get_3step_view(input_coords):
 
     image = http_response.read()
 
-    image_name = encoded_query.replace('&','_') + ".jpg"
+    image_name = address_id + '_step.jpg'
 
     print("image_name",image_name)
 
@@ -357,5 +362,5 @@ def zip_apt_scraper(zip, no_listing_pages=5):
 
 # zip_apt_scraper(19146)
 
-feat = get_address_features('2023 kentwell rd, columbus, oh 43221', 'zip')
-print(feat)
+feat = get_address_features('2023 kentwell rd, columbus, oh 43221', 'street_address', 'zip')
+print(get_address_id(feat))
