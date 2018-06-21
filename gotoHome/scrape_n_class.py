@@ -8,23 +8,84 @@ import time
 
 import json
 
+from collections import namedtuple
+
 import os
 from subprocess import Popen,PIPE,STDOUT
 
 import re
+
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
-import config
+from .config import zillow, geocode
+
+def get_address_features(input_address, *args):
+
+    address_features = {}
+
+    address_match_groups = {
+        'street_address' : 'street_match.group(0)',
+        'house_no' : 'street_match.group(1)',
+        'street_name' : 'street_match.group(2)',
+        'city' : 'city_match.group(0)',
+        'state' : 'state_match.group(0)',
+        'zip' : 'zip_match.group(0)'
+    }
+
+    address_list = input_address.split(',')
+
+    street_re = re.compile(r'([-\d]+) ([\w\s]+)')
+
+    city_re = re.compile(r'[\w\s]+')
+
+    state_zip_re = re.compile(r'([A-Za-z]{2}) (\d{5})')
+
+    state_re = re.compile(r'[A-Za-z]{2}')
+
+    zip_re = re.compile(r'(\d{5})')
+
+    street_match = re.search(street_re, address_list[0].strip())
+
+    # the following blocks seem a little crufty and redundant to me, but I can't think of a good way to refactor...
+    try:
+        city_match = re.search(city_re, address_list[1].strip())
+        state_zip_match = re.search(state_zip_re, address_list[2].strip())
+
+    except:
+        print("no city found")
+        pass
+
+    try:
+        state_match = re.search(state_re, address_list[-1].strip())
+
+    except:
+        print("no state found")
+        pass
+
+    try:
+        zip_match = re.search(zip_re, address_list[-1].strip())
+    except:
+        print("no zip code found")
+        pass
+
+    for arg in args:
+        if arg not in address_match_groups.keys():
+            raise
+        try:
+            address_features[arg] = eval(address_match_groups[arg])
+
+        except:
+            address_features[arg] = ''
+            pass
+
+    return address_features
 
 def my_address_check(address_maybe):
 
-    street_re = re.compile(r'[-\d]+ [\w\s]+')
+    address_features = get_address_features(address_maybe, 'street_address', 'city', 'state', 'zip')
 
-    state_zip_re = re.compile(r'[A-Z]{2} \d{5}')
-
-    address_list = address_maybe.split(',')
-
-    if re.match(street_re, address_list[0].strip()) and re.match(state_zip_re, address_list[2].strip()):
+    if address_features['street_address'] and (address_features['zip'] or
+                                               (address_features['city'] and address_features['state'])):
         print(address_maybe.strip(), "looks like an address")
         return True
 
@@ -32,13 +93,10 @@ def my_address_check(address_maybe):
         print("hmm...", address_maybe.strip(), "does not appear to be a full address")
         return False
 
-
-
-
 def scrape_zillow_data(input_address):
     session = requests.Session()
 
-    zillow_data = ZillowWrapper(config.zillow)
+    zillow_data = ZillowWrapper(zillow)
 
     m = re.search(r'[0-9]{5}',input_address)
 
@@ -107,7 +165,9 @@ def scrape_zillow_data(input_address):
     return facts
 
 def get_geocode_coords(input_address):
-    params = {'key': config.geocode, 'address': input_address}
+    params = {'key': geocode, 'address': input_address}
+
+    Geocoords = namedtuple('Geocoords', 'lat lng')
 
     encoded_query = urlencode(params)
 
@@ -123,17 +183,17 @@ def get_geocode_coords(input_address):
 
     lng = json_data['results'][0]['geometry']['location']['lng']
 
-    geo_coords = (lat,lng)
+    geo_coords = Geocoords(lat, lng)
 
     return geo_coords
 
-def get_sidewalk_view(input_coords, image_path):
+def get_sidewalk_view(input_coords, image_path, address_features):
     """ accepts a tuple with coordinates and returns a google streetview image"""
 
-    geo_string = ','.join(map(str,input_coords))
+    geo_string = ','.join(map(str, input_coords))
     print(geo_string)
 
-    params = {'size':'1000x1000','location': geo_string , 'pitch': '-20', 'source':'outdoor'}
+    params = {'size':'1000x1000', 'location': geo_string , 'pitch': '-20', 'source':'outdoor'}
 
     encoded_query = urlencode(params)
 
@@ -147,7 +207,11 @@ def get_sidewalk_view(input_coords, image_path):
 
     image = http_response.read()
 
-    image_name = encoded_query.replace('&', '_') + ".jpg"
+    # image_name = encoded_query.replace('&', '_') + ".jpg"
+
+    encoded_street_address = re.sub(r'\s+', '_', address_features['street_address'])
+
+    image_name = encoded_street_address + '_' + address_features['zip'] + '.jpg'
 
     print("image_name", image_name)
 
@@ -255,8 +319,6 @@ def zip_apt_scraper(zip, no_listing_pages=5):
     for i in range(no_listing_pages):
         time.sleep(random.random())
 
-        # link = base_link + "/" + str(i) + "/"
-
         link = '/'.join([base_link, str(i + 1)])
         print(link)
 
@@ -275,6 +337,13 @@ def zip_apt_scraper(zip, no_listing_pages=5):
                 if my_address_check(location.get_text()):
                     new_rentals.append(location.get_text())
 
+                # ok, this else block breaks this for loop in some crucial way, but I'd still like to glean
+                # the results that aren't in the location attrib...
+                # else:
+                #     print("else", location)
+                #     listing_list = bsObj.find("placardContainer").findAll("a")
+                #     print(listing_list)
+
                 # location.previous_sibling
         except:
             print("could not find location elements...")
@@ -282,6 +351,11 @@ def zip_apt_scraper(zip, no_listing_pages=5):
 
         rentals.extend(new_rentals)
 
+    print(len(rentals))
+
     return rentals
 
-zip_apt_scraper(19146)
+# zip_apt_scraper(19146)
+
+feat = get_address_features('2023 kentwell rd, columbus, oh 43221', 'zip')
+print(feat)

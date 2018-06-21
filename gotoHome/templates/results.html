@@ -8,10 +8,11 @@
 </div>
 <div class="page-content">
     <p>{{ address }}</p>
-    <p>{{ geo_coords }}</p>
+    <p>{{ geo_coords.lat }}</p>
     <p>{{ zillow_data }}</p>
     <p>sidewalk? {{ sidewalk_class_result }}</p>
     <p>steps? {{ steps }}</p>
+    <div class="gmap" >{{googlemap("my_awesome_map", lat=geo_coords.lat, lng=geo_coords.lng, markers=[(geo_coords.lat, geo_coords.lng)])}} </div>
 
     <img src="{{ url_for('static', filename = img) }}" />
 </div>
