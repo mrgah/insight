@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf %}
 
-{% block title %}goto home{% endblock %}
+{% block title %}access granted{% endblock %}
 
 {% block page_content %}
 <div class="page-header">
-    <h1>welcome to goto home</h1>
+    <h1>welcome to access granted</h1>
+    <img style="max-height: 300px; alignment: right" src="{{ url_for('static', filename = 'access-lock-clipart-5.jpg' ) }}" />
 </div>
 {{ wtf.quick_form(form) }}
 {% endblock %}

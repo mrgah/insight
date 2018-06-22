@@ -17,7 +17,9 @@ import re
 
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
-from .config import zillow, geocode
+from .config import zillow, geocode, onboard_key
+
+Geocoords = namedtuple('Geocoords','lat lng')
 
 def get_address_features(input_address, *args):
 
@@ -101,12 +103,12 @@ def scrape_zillow_data(input_address):
     m = re.search(r'[0-9]{5}',input_address)
 
     zipcode = m.group(0)
-    print("ZIP code: ", zipcode)
+    # print("ZIP code: ", zipcode)
 
     deep_search_response = zillow_data.get_deep_search_results(input_address,zipcode)
     result = GetDeepSearchResults(deep_search_response)
     zillow_id = result.zillow_id
-    print("Zillow ID: ", zillow_id)
+    # print("Zillow ID: ", zillow_id)
 
     headers = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_5) AppleWebKit 537.36 (KHTML, like Gecko) Chrome",
         "Accept": "text/html,application/xhtml+xml,application/xml; q=0.9,image/webp,*/*;q=0.8"}
@@ -123,7 +125,6 @@ def scrape_zillow_data(input_address):
     bsObj = BeautifulSoup(req.text, "lxml")
 
     facts['unit_type'] = bsObj.find(class_="hdp-fact-ataglance-value").get_text()
-
 
     try:
         unit_facts = bsObj.find("div", {"class": "hdp-fact-container"}).find_all("li")
@@ -155,7 +156,7 @@ def scrape_zillow_data(input_address):
         for fact in hdp_amen2_facts:
             amenities.append(fact.get_text())
 
-            # print(fact.get_text())
+            print("amenities:", fact.get_text())
         facts['amenities'] = amenities
     except:
         print("could not find information on unit amenities")
@@ -351,11 +352,122 @@ def zip_apt_scraper(zip, no_listing_pages=5):
 
         rentals.extend(new_rentals)
 
-    print(len(rentals))
+    # the value the following line prints out is incorrect (doubled?)
+    print("the number of rentals this search found is", len(rentals))
 
     return rentals
 
-# zip_apt_scraper(19146)
+def get_unit_dets(address):
 
-feat = get_address_features('2023 kentwell rd, columbus, oh 43221', 'zip')
-print(feat)
+    results = {}
+
+    results['address_features'] = get_address_features(address, 'street_address', 'city', 'state', 'zip')
+
+    street_string = re.sub(r'\s+', '_', results['address_features']['street_address'].strip()).lower()
+
+    address_id = street_string + '_' + results['address_features']['zip']
+
+    try:
+        results['zillow_data'] = scrape_zillow_data(address)
+    except:
+        print("could not scrape zillow data for", address)
+        pass
+
+    results['levels'], results['proptype'] = get_onboard_prop_details(address)
+
+    results['geo_coords'] = get_geocode_coords(address)
+
+    # this is a little clunky, but will be replaced
+    results['image_name'] = get_sidewalk_view(results['geo_coords'], 'static', results['address_features'])
+
+    # also clunky and inconsistent
+    results['step_image_name'] = get_3step_view(results['geo_coords'])
+
+    img = results['image_name']
+    print("results['image_name']", results['image_name'])
+    image_path = os.path.join('static', img)
+
+    results['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt').split(' ')
+    results['3_steps_result'] = classify_image(image_path, '3steps_graph.pb', '3steps_labels.txt').split(' ')
+
+    try:
+        results['access_grade'] = assess_unit_accessibility(results)
+    except:
+        results['access_grade'] = 'unknown'
+        pass
+
+    return address_id, results
+
+def assess_unit_accessibility(results):
+    access_grade = 'unknown'
+
+    if ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] > 1991)
+        and 'Elevator' in results['zillow_data']['amenities']
+        and results['sidewalk_class_result'][0] == 'yes'
+        and results['3_steps_result'][0] == 'no'):
+        access_grade = 'very good'
+    elif (results['sidewalk_class_result'][0] == 'yes' and
+        results['3_steps_result'][0] == 'no'):
+        access_grade = 'good'
+    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
+        and results['levels'] == 1
+        and results['3_steps_result'][0] == 'no'
+        and results['sidewalk_class_result'][0] == 'yes'):
+        access_grade = 'good'
+    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
+        and 'Elevator' not in results['zillow_data']['amenities']
+        and results['3_steps_result'][0] == 'no'
+        and results['sidewalk_class_result'][0] == 'no'):
+        access_grade = 'fair'
+    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
+        and results['levels'] == 1
+        and results['3_steps_result'][0] == 'no'
+        and results['sidewalk_class_result'][0] == 'no'):
+        access_grade = 'fair'
+    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
+        and (results['levels'] > 1
+        or results['3_steps_result'][0] == 'yes'
+        or results['sidewalk_class_result'][0] == 'no')):
+        access_grade = 'poor'
+    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
+        and (results['levels'] > 1 and 'Elevator' not in results['zillow_data']['amenities'])
+        and results['3_steps_result'][0] == 'no'
+        and results['sidewalk_class_result'][0] == 'no'):
+        access_grade = 'poor'
+    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
+        and 'Elevator' not in results['zillow_data']['amenities']
+        and results['3_steps_result'][0] == 'yes'
+        and results['sidewalk_class_result'][0] == 'no'):
+        access_grade = 'poor'
+    # else:
+    #     access_grade = 'unknown'
+
+    return access_grade
+
+def get_onboard_prop_details(input_address):
+    # at the moment, this simply returns the number of levels in a building
+    headers = {'Accept': 'application/json', 'apikey': onboard_key}
+
+    params = {'address': input_address}
+
+    encoded_query = urlencode(params)
+
+    onboard_query = "https://search.onboard-apis.com/propertyapi/v1.0.0/property/detail?" + encoded_query
+
+    session = requests.Session()
+
+    try:
+        req = session.get(onboard_query, headers=headers)
+
+        json_data = json.loads(req.text)
+
+        levels = json_data['property'][0]['building']['summary']['levels']
+
+        proptype = json_data['property'][0]['summary']['proptype']
+
+    except:
+        levels = None
+        proptype = None
+        pass
+
+    return levels, proptype

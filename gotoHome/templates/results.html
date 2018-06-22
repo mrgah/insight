@@ -1,20 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}goto home{% endblock %}
+{% block title %}access granted{% endblock %}
 
 {% block page_content %}
 <div class="page-header">
-    <h1>welcome to goto home results</h1>
+    <h1>access granted results for {{ zip }} </h1>
 </div>
 <div class="page-content">
-    <p>{{ address }}</p>
-    <p>{{ geo_coords.lat }}</p>
-    <p>{{ zillow_data }}</p>
-    <p>sidewalk? {{ sidewalk_class_result }}</p>
-    <p>steps? {{ steps }}</p>
-    <div class="gmap" >{{googlemap("my_awesome_map", lat=geo_coords.lat, lng=geo_coords.lng, markers=[(geo_coords.lat, geo_coords.lng)])}} </div>
 
-    <img src="{{ url_for('static', filename = img) }}" />
+    <ul style="list-style: none">
+        {% for result in overall_results %}
+        <li style="background-color: whitesmoke; padding: 15px; margin: 15px; max-width: 615px">
+            <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
+            <h3> {{ overall_results[result]['address_features']['street_address'] }} </h3>
+                <p>
+                    The presence or absence of <b>sidewalks</b> ({{ overall_results[result]['sidewalk_class_result'][0] }}),
+                    <b>multiple steps</b> ({{ overall_results[result]['3_steps_result'][0] }}), <b>elevators</b>, and other features
+                    suggest that the accessibility of this dwelling is likely to be
+                    <b style="text-decoration: underline">{{ overall_results[result]['access_grade'] }}</b>.
+                </p>
+            <div class="gmap" >{{ googlemap("apt_locator", lat=overall_results[result]['geo_coords'].lat, lng=overall_results[result]['geo_coords'].lng,
+                markers=[(overall_results[result]['geo_coords'].lat, overall_results[result]['geo_coords'].lng)])}} </div>
+        <!---            {{ overall_results[result] }} -->
+        </li>
+
+        {% endfor %}
+    </ul>
 </div>
 
 {% endblock %}

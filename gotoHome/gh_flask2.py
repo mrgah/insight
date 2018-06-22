@@ -9,8 +9,10 @@ from werkzeug.contrib.cache import FileSystemCache
 
 from collections import namedtuple
 
-from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, \
-                    scrape_zillow_data, get_3step_view, my_address_check, get_address_features
+import re
+
+from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, zip_apt_scraper, \
+                    scrape_zillow_data, get_3step_view, my_address_check, get_address_features, get_unit_dets
 import os
 from .config import flask_secret_key, geocode, zillow
 
@@ -28,7 +30,7 @@ cache = FileSystemCache('cache', default_timeout=(60*60*24))
 
 class AddressForm(FlaskForm):
     # I'd like my custom address validator here, but it keeps throwing errors
-    address = StringField('Please enter an address:', [InputRequired()])
+    zip = StringField('Please enter a zip code:', [InputRequired()])
     submit = SubmitField('Submit')
 
 @app.errorhandler(404)
@@ -44,41 +46,38 @@ def internal_server_error(e):
 def index():
     form = AddressForm()
     if form.validate_on_submit():
-        session['address'] = form.address.data
+        session['zip'] = form.zip.data
         return redirect(url_for('results'))
-    return render_template('index.html', form=form, address=session.get('address'))
+    return render_template('index.html', form=form, zip=session.get('zip'))
 
 @app.route('/results')
 def results():
-    session['address_features'] = get_address_features(session['address'], 'street_address', 'city', 'state', 'zip')
 
-    session['address_id'] = re.sub(r'\s+', '_', session['address_features']['street_address'].strip()).lower() + '_' + [session['zip'] + '.jpg'
+    overall_results = {}
 
-    try:
-        session['zillow_data'] = scrape_zillow_data(session['address'])
-    except:
-        pass
-    session['geo_coords'] = get_geocode_coords(session['address'])
-    # session['geo_coords'] = (40.019841, -83.066971)
-    # session['geo_coords'] = (30.2808142,-97.754020799999)
-    session['image_name'] = get_sidewalk_view(session['geo_coords'], 'static', session['address_features'])
+    zip_unit_list = zip_apt_scraper(session['zip'], no_listing_pages=1)
 
-    session['step_image_name'] = get_3step_view(session['geo_coords'])
+    for result in zip_unit_list:
 
-    img = session['image_name']
-    print("session['image_name']",session['image_name'])
-    image_path = os.path.join('static', img)
-    session['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt')
+        unit_key, unit_results = get_unit_dets(result)
 
-    img = session['step_image_name']
-    print("session['step_image_name']",session['step_image_name'])
-    image_path = os.path.join('static', img)
+        overall_results[unit_key] = unit_results
 
-    session['3_steps_result'] = classify_image(image_path, '3steps_graph.pb','3steps_labels.txt')
+    # session['address_id'] = street_string + '_' + session['address_features']['zip']
+    #
+    # session['geo_coords'] = get_geocode_coords(session['address'])
+    #
+    # results[session['address_id']] = get_unit_dets(session['address'])
+    #
+    #
+    # img = session[session['address_id']]['image_name']
+    #
+    # print("results:\n", session[session['address_id']])
 
-    return render_template('results.html', address=session.get('address'), geo_coords=session.get('geo_coords'),
-                           sidewalk_class_result=session.get('sidewalk_class_result'), img=session.get('image_name'),
-                           zillow_data=session.get('zillow_data'), steps=session.get('3_steps_result'))
+    print("overall results:\n\n", overall_results, "\n\n")
+
+    return render_template('results.html', address=session.get('address'),
+                           overall_results=overall_results, zip=session.get('zip'))
 
 @app.route('/about')
 def about():
