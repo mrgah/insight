@@ -21,7 +21,12 @@
     <ul style="list-style: none">
         {% for result in overall_results %}
         <li style="background-color: whitesmoke; padding: 15px; margin: 15px; max-width: 615px">
+            {% if overall_results[result]['3_steps_result'][0] == 'yes' %}
             <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
+            {% elif overall_results[result]['3_steps_result'][0] == 'no' %}
+            <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
+            {% endif %}
+
 
             <h3 class="{{ overall_results[result]['access_label'] }}" > {{ overall_results[result]['address_features']['street_address'] }} </h3>
                 <p>
