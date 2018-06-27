@@ -1,0 +1,19 @@
+.great {
+    text-decoration: underline;
+    text-decoration-color: green;
+}
+
+.good {
+    text-decoration: underline;
+    text-decoration-color: blue;
+}
+
+.fair {
+    text-decoration: underline;
+    text-decoration-color: goldenrod;
+}
+
+.poor {
+    text-decoration: underline;
+    text-decoration-color: darkred;
+}

@@ -11,15 +11,19 @@ import json
 from collections import namedtuple
 
 import os
-from subprocess import Popen,PIPE,STDOUT
+from subprocess import Popen,PIPE
 
 import re
+
+from imageio import imread
 
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
 from .config import zillow, geocode, onboard_key
 
 Geocoords = namedtuple('Geocoords','lat lng')
+
+
 
 def get_address_features(input_address, *args):
 
@@ -44,7 +48,7 @@ def get_address_features(input_address, *args):
 
     state_re = re.compile(r'[A-Za-z]{2}')
 
-    zip_re = re.compile(r'(\d{5})')
+    zip_re = re.compile(r'(\d{5}|\d{5}-\d{4})')
 
     street_match = re.search(street_re, address_list[0].strip())
 
@@ -187,6 +191,24 @@ def get_geocode_coords(input_address):
     geo_coords = Geocoords(lat, lng)
 
     return geo_coords
+
+def is_img_blank(img_name):
+    im = imread(img_name, pilmode='RGB')
+    img_x, img_y = im.shape[0], im.shape[1]
+    trues = 0
+    falses = 0
+    for i in range(100):
+        x = random.randint(0, (img_x-1))
+        y = random.randint(0, (img_y-1))
+        color = tuple(im[x][y])
+        if color == (228, 227, 223):
+            trues = trues + 1
+        else:
+            falses = falses + 1
+    if (falses/(trues + falses) > .05):
+        return False
+    else:
+        return True
 
 def get_sidewalk_view(input_coords, image_path, address_features):
     """ accepts a tuple with coordinates and returns a google streetview image"""
@@ -373,12 +395,14 @@ def get_unit_dets(address):
         print("could not scrape zillow data for", address)
         pass
 
-    results['levels'], results['proptype'] = get_onboard_prop_details(address)
+    results['levels'], results['proptype'], results['yearbuilt'] = get_onboard_prop_details(address)
 
     results['geo_coords'] = get_geocode_coords(address)
 
     # this is a little clunky, but will be replaced
     results['image_name'] = get_sidewalk_view(results['geo_coords'], 'static', results['address_features'])
+
+
 
     # also clunky and inconsistent
     results['step_image_name'] = get_3step_view(results['geo_coords'])
@@ -387,62 +411,84 @@ def get_unit_dets(address):
     print("results['image_name']", results['image_name'])
     image_path = os.path.join('static', img)
 
-    results['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt').split(' ')
+    # results['blank_img'] = is_img_blank(image_path)
+
+    # # if results['blank_img'] == True:
+    #     results['sidewalk_class_result'] = None
+    #     results['3_steps_result'] = None
+    # else:
+
+    # tried to assess whether images where blank, but ended up in dependency hell (but see is_img_blank.ipynb)
+    results['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt').split(
+        ' ')
     results['3_steps_result'] = classify_image(image_path, '3steps_graph.pb', '3steps_labels.txt').split(' ')
 
     try:
-        results['access_grade'] = assess_unit_accessibility(results)
+        results['access_grade'], results['access_label'] = assess_unit_accessibility(results)
     except:
-        results['access_grade'] = 'unknown'
+        results['access_grade'], results['access_label'] = 'unknown', 'unknown'
         pass
 
     return address_id, results
 
 def assess_unit_accessibility(results):
-    access_grade = 'unknown'
+    access_grade = 35
 
-    if ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] > 1991)
-        and 'Elevator' in results['zillow_data']['amenities']
-        and results['sidewalk_class_result'][0] == 'yes'
-        and results['3_steps_result'][0] == 'no'):
-        access_grade = 'very good'
-    elif (results['sidewalk_class_result'][0] == 'yes' and
-        results['3_steps_result'][0] == 'no'):
-        access_grade = 'good'
-    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
-        and results['levels'] == 1
-        and results['3_steps_result'][0] == 'no'
-        and results['sidewalk_class_result'][0] == 'yes'):
-        access_grade = 'good'
-    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
-        and 'Elevator' not in results['zillow_data']['amenities']
-        and results['3_steps_result'][0] == 'no'
-        and results['sidewalk_class_result'][0] == 'no'):
-        access_grade = 'fair'
-    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
-        and results['levels'] == 1
-        and results['3_steps_result'][0] == 'no'
-        and results['sidewalk_class_result'][0] == 'no'):
-        access_grade = 'fair'
-    elif ((results['zillow_data']['unit_type'] == 'Single Family' or results['proptype'] == 'SFR')
-        and (results['levels'] > 1
-        or results['3_steps_result'][0] == 'yes'
-        or results['sidewalk_class_result'][0] == 'no')):
-        access_grade = 'poor'
-    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
-        and (results['levels'] > 1 and 'Elevator' not in results['zillow_data']['amenities'])
-        and results['3_steps_result'][0] == 'no'
-        and results['sidewalk_class_result'][0] == 'no'):
-        access_grade = 'poor'
-    elif ((results['zillow_data']['unit_type'] in ['Apartment','Multi Family'] and results['zillow_data']['dates'] < 1965)
-        and 'Elevator' not in results['zillow_data']['amenities']
-        and results['3_steps_result'][0] == 'yes'
-        and results['sidewalk_class_result'][0] == 'no'):
-        access_grade = 'poor'
-    # else:
-    #     access_grade = 'unknown'
+    zillow_data = results.get('zillow_data', {'dates': 0, 'unit_type': None, 'amenities': []})
+    print(zillow_data['dates'])
 
-    return access_grade
+    if results['sidewalk_class_result'][0] == 'yes':
+        print("sidewalk")
+        access_grade = access_grade + 10
+    elif results['sidewalk_class_result'][0] == 'no':
+        print("no sidewalk")
+        access_grade = access_grade - 10
+
+    if results['3_steps_result'][0] == 'no':
+        print("few steps")
+        access_grade = access_grade + 15
+    elif results['3_steps_result'][0] == 'yes':
+        print("lots of steps")
+        access_grade = access_grade - 15
+
+    if ((results['proptype'] in ['APARTMENT', 'MULTI FAMILY DWELLING']
+         or zillow_data['unit_type'] in ['Apartment', 'Condo'])
+            and int(zillow_data.get('dates', 0)) > 2000 or int(results['yearbuilt']) > 2000):
+        print("newer building")
+        access_grade = access_grade + 20
+
+    if ((results['proptype'] in ['APARTMENT', 'MULTI FAMILY DWELLING']
+         or zillow_data['unit_type'] in ['Apartment', 'Condo'])
+            and (int(zillow_data.get('dates', 0)) < 2000 and int(zillow_data.get('dates', 0)) > 1980
+                 or int(results['yearbuilt']) < 2000 and int(results['yearbuilt']) > 1980)):
+        print("reasonably modern building")
+        access_grade = access_grade + 10
+
+    if ((results['proptype'] in ['APARTMENT', 'MULTI FAMILY DWELLING']
+         or zillow_data['unit_type'] in ['Apartment', 'Condo'])
+            and (int(zillow_data.get('dates', 0)) < 1980 and int(zillow_data.get('dates', 0) > 1700)
+                 or (int(results['yearbuilt']) < 1980 and int(results['yearbuilt']) > 1700))):
+        print("old building")
+        access_grade = access_grade - 5
+
+    if (results.get('levels', .5) > 1) and 'Elevator' in zillow_data.get('amenities', []):
+        print("multi story, elevator")
+        access_grade = access_grade + 5
+
+    if (results.get('levels', .5) > 1) and 'Elevator' not in zillow_data.get('amenities', []):
+        print("multi story, no elevator")
+        access_grade = access_grade - 5
+
+    if access_grade >= 80:
+        access_label = 'great'
+    elif access_grade < 80 and access_grade > 59:
+        access_label = 'good'
+    elif access_grade < 59 and access_grade > 29:
+        access_label = 'fair'
+    elif access_grade < 29:
+        access_label = 'poor'
+
+    return access_grade, access_label
 
 def get_onboard_prop_details(input_address):
     # at the moment, this simply returns the number of levels in a building
@@ -465,9 +511,13 @@ def get_onboard_prop_details(input_address):
 
         proptype = json_data['property'][0]['summary']['proptype']
 
+        yearbuilt = json_data['property'][0]['building']['summary']['yearbuilt']
+
+
     except:
-        levels = None
+        levels = 0
         proptype = None
+        yearbuilt = 0
         pass
 
-    return levels, proptype
+    return levels, proptype, yearbuilt

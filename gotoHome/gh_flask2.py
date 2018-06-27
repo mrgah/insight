@@ -63,17 +63,6 @@ def results():
 
         overall_results[unit_key] = unit_results
 
-    # session['address_id'] = street_string + '_' + session['address_features']['zip']
-    #
-    # session['geo_coords'] = get_geocode_coords(session['address'])
-    #
-    # results[session['address_id']] = get_unit_dets(session['address'])
-    #
-    #
-    # img = session[session['address_id']]['image_name']
-    #
-    # print("results:\n", session[session['address_id']])
-
     print("overall results:\n\n", overall_results, "\n\n")
 
     return render_template('results.html', address=session.get('address'),
