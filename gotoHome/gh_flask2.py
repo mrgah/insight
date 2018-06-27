@@ -55,18 +55,29 @@ def results():
 
     overall_results = {}
 
+    session['zip_coords'] = get_geocode_coords(session['zip'])
+
     zip_unit_list = zip_apt_scraper(session['zip'], no_listing_pages=1)
+
+    session['result_coords'] = []
 
     for result in zip_unit_list:
 
         unit_key, unit_results = get_unit_dets(result)
 
+        session['result_coords'].append({'lat': unit_results['geo_coords'].lat, 'lng': unit_results['geo_coords'].lng,
+                                         'infobox': unit_results['address_features']['street_address'],
+                                         'icon': 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'})
+
         overall_results[unit_key] = unit_results
+
+    print("\nzip coords", session['zip_coords'], "\nresult coords", session['result_coords'], "\n")
 
     print("overall results:\n\n", overall_results, "\n\n")
 
     return render_template('results.html', address=session.get('address'),
-                           overall_results=overall_results, zip=session.get('zip'))
+                           overall_results=overall_results, zip=session.get('zip'),
+                           zip_coords=session.get('zip_coords'), result_coords=session.get('result_coords'))
 
 @app.route('/about')
 def about():

@@ -14,6 +14,9 @@
 </div>
 <div class="page-content">
 
+    <div class="gmap" style="max-width: 500px">{{ googlemap("apt_locator", lat=zip_coords.lat, lng=zip_coords.lng,
+    markers=result_coords )}} </div>
+
 
     <ul style="list-style: none">
         {% for result in overall_results %}

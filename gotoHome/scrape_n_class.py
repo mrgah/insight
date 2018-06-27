@@ -15,7 +15,7 @@ from subprocess import Popen,PIPE
 
 import re
 
-from imageio import imread
+# from imageio import imread
 
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
@@ -279,9 +279,9 @@ def get_3step_view(input_coords):
 
 def classify_image(image_file,model_file,output_labels='output_labels.txt'):
 
-    command_string = 'python label_image.py --graph=' + model_file + ' --labels=' + output_labels + ' --input_layer=Placeholder --output_layer=final_result --image=' + image_file
+    command_string = 'python3 label_image.py --graph=' + model_file + ' --labels=' + output_labels + ' --input_layer=Placeholder --output_layer=final_result --image=' + image_file
 
-    command = 'python '
+    command = 'python3 '
     command_args = 'label_image.py --graph=' + model_file + ' --labels=' + output_labels + ' --input_layer=Placeholder --output_layer=final_result --image=' + image_file
 
     print(command_string)
@@ -521,3 +521,5 @@ def get_onboard_prop_details(input_address):
         pass
 
     return levels, proptype, yearbuilt
+
+print(get_geocode_coords(27510))
