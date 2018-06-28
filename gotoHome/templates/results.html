@@ -12,9 +12,9 @@
 <div class="page-header">
     <h1>access granted results for {{ zip }} </h1>
 </div>
-<div class="page-content">
+<div class="page-content" style="align-content: center;">
 
-    <div class="gmap" style="max-width: 500px">{{ googlemap("apt_locator", lat=zip_coords.lat, lng=zip_coords.lng,
+    <div class="gmap" style="max-width: 500px; margin-left: 55px">{{ googlemap("apt_locator", lat=zip_coords.lat, lng=zip_coords.lng,
     markers=result_coords )}} </div>
 
 
@@ -23,18 +23,40 @@
         <li style="background-color: whitesmoke; padding: 15px; margin: 15px; max-width: 615px">
             {% if overall_results[result]['3_steps_result'][0] == 'yes' %}
             <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
+
+            <h3 class="{{ overall_results[result]['access_label'] }}" > {{ overall_results[result]['address_features']['street_address'] }} </h3>
+            <p>
+                The presence or absence of <b>sidewalks</b> ({{ overall_results[result]['sidewalk_class_result'][0] }}),
+                <b>multiple steps</b> ({{ overall_results[result]['3_steps_result'][0] }}), <b>elevators</b>, and other features
+                suggest that the accessibility of this dwelling is likely to be
+                <b class="{{ overall_results[result]['access_label'] }}">{{ overall_results[result]['access_label'] }}</b>.
+            </p>
+
             {% elif overall_results[result]['3_steps_result'][0] == 'no' %}
             <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
+
+            <h3 class="{{ overall_results[result]['access_label'] }}" > {{ overall_results[result]['address_features']['street_address'] }} </h3>
+            <p>
+                The presence or absence of <b>sidewalks</b> ({{ overall_results[result]['sidewalk_class_result'][0] }}),
+                <b>multiple steps</b> ({{ overall_results[result]['3_steps_result'][0] }}), <b>elevators</b>, and other features
+                suggest that the accessibility of this dwelling is likely to be
+                <b class="{{ overall_results[result]['access_label'] }}">{{ overall_results[result]['access_label'] }}</b>.
+            </p>
+
+            {% else %}
+
+            <h3 class="{{ overall_results[result]['access_label'] }}" > {{ overall_results[result]['address_features']['street_address'] }} </h3>
+
+            <p>
+                Several features of this dwelling, including its <b>date</b>, the presence or absence of <b>elevators</b>,
+                and other features suggest that the accessibility of this dwelling is likely to be
+                <b class="{{ overall_results[result]['access_label'] }}">{{ overall_results[result]['access_label'] }}</b>.
+            </p>
+
             {% endif %}
 
 
-            <h3 class="{{ overall_results[result]['access_label'] }}" > {{ overall_results[result]['address_features']['street_address'] }} </h3>
-                <p>
-                    The presence or absence of <b>sidewalks</b> ({{ overall_results[result]['sidewalk_class_result'][0] }}),
-                    <b>multiple steps</b> ({{ overall_results[result]['3_steps_result'][0] }}), <b>elevators</b>, and other features
-                    suggest that the accessibility of this dwelling is likely to be
-                    <b class="{{ overall_results[result]['access_label'] }}">{{ overall_results[result]['access_label'] }}</b>.
-                </p>
+
         <!---            {{ overall_results[result] }} -->
         </li>
 

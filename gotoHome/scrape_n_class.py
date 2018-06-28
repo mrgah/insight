@@ -521,5 +521,3 @@ def get_onboard_prop_details(input_address):
         pass
 
     return levels, proptype, yearbuilt
-
-print(get_geocode_coords(27510))
