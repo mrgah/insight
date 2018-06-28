@@ -245,8 +245,7 @@ def get_sidewalk_view(input_coords, image_path, address_features):
 
     return image_name
 
-def get_3step_view(input_coords):
-    """ accepts a tuple with coordinates and returns a google streetview image"""
+def get_3step_view(input_coords, image_path, address_features):
 
     geo_string = ','.join(map(str,input_coords))
     print(geo_string)
@@ -265,13 +264,15 @@ def get_3step_view(input_coords):
 
     image = http_response.read()
 
-    image_name = encoded_query.replace('&','_') + ".jpg"
+    encoded_street_address = re.sub(r'\s+', '_', address_features['street_address'])
+
+    image_name = encoded_street_address + '_' + address_features['zip'] + 'steps.jpg'
 
     print("image_name",image_name)
 
-    image_path = "static/" + image_name
+    image_full_path = os.path.join(image_path, image_name)
 
-    with open(image_path,'wb') as f:
+    with open(image_full_path,'wb') as f:
         f.write(image)
 
     return image_name
@@ -402,10 +403,7 @@ def get_unit_dets(address):
     # this is a little clunky, but will be replaced
     results['image_name'] = get_sidewalk_view(results['geo_coords'], 'static', results['address_features'])
 
-
-
-    # also clunky and inconsistent
-    results['step_image_name'] = get_3step_view(results['geo_coords'])
+    results['step_image_name'] = get_3step_view(results['geo_coords'], 'static', results['address_features'])
 
     img = results['image_name']
     print("results['image_name']", results['image_name'])

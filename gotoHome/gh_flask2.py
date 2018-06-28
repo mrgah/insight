@@ -57,7 +57,7 @@ def results():
 
     session['zip_coords'] = get_geocode_coords(session['zip'])
 
-    zip_unit_list = zip_apt_scraper(session['zip'], no_listing_pages=1)
+    zip_unit_list = zip_apt_scraper(session['zip'], no_listing_pages=2)
 
     session['result_coords'] = []
 
