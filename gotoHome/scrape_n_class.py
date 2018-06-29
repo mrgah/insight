@@ -433,7 +433,6 @@ def assess_unit_accessibility(results):
     access_grade = 35
 
     zillow_data = results.get('zillow_data', {'dates': 0, 'unit_type': None, 'amenities': []})
-    print(zillow_data['dates'])
 
     if results['sidewalk_class_result'][0] == 'yes':
         print("sidewalk")
@@ -457,15 +456,15 @@ def assess_unit_accessibility(results):
 
     if ((results['proptype'] in ['APARTMENT', 'MULTI FAMILY DWELLING']
          or zillow_data['unit_type'] in ['Apartment', 'Condo'])
-            and (int(zillow_data.get('dates', 0)) < 2000 and int(zillow_data.get('dates', 0)) > 1980
-                 or int(results['yearbuilt']) < 2000 and int(results['yearbuilt']) > 1980)):
+            and (1980 < int(zillow_data.get('dates', 0)) < 2000
+                 or 1980 < int(results['yearbuilt']) < 2000)):
         print("reasonably modern building")
         access_grade = access_grade + 10
 
     if ((results['proptype'] in ['APARTMENT', 'MULTI FAMILY DWELLING']
          or zillow_data['unit_type'] in ['Apartment', 'Condo'])
-            and (int(zillow_data.get('dates', 0)) < 1980 and int(zillow_data.get('dates', 0) > 1700)
-                 or (int(results['yearbuilt']) < 1980 and int(results['yearbuilt']) > 1700))):
+            and (1700 < int(zillow_data.get('dates', 0) < 1980)
+                 or (1700 < int(results['yearbuilt']) < 1980))):
         print("old building")
         access_grade = access_grade - 5
 
@@ -519,3 +518,6 @@ def get_onboard_prop_details(input_address):
         pass
 
     return levels, proptype, yearbuilt
+
+results = {'address_features': {'street_address': '5825 Camerford Ave', 'city': 'Los Angeles', 'state': 'CA', 'zip': '90038'}, 'zillow_data': {'unit_type': 'Apartment', 'amenities': ['Elevator']}, 'levels': 0, 'proptype': None, 'yearbuilt': 0, 'geo_coords': Geocoords(lat=34.08465500000001, lng=-118.325435), 'image_name': '5825_Camerford_Ave_90038.jpg', 'step_image_name': 'size=1000x1000_location=34.08465500000001%2C-118.325435_pitch=-10_fov=50_source=outdoor.jpg', 'sidewalk_class_result': ['no', '0.8685633'], '3_steps_result': [''], 'access_grade': 'unknown', 'access_label': 'unknown'}
+print(assess_unit_accessibility(results))

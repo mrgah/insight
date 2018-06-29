@@ -65,9 +65,18 @@ def results():
 
         unit_key, unit_results = get_unit_dets(result)
 
+        icon_links = {
+            'great': 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+            'good': 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            'fair': 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+            'poor': 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+            'unknown': 'https://maps.google.com/mapfiles/ms/micons/question.png'}
+
+        icon_link = icon_links[unit_results['access_label']]
+
         session['result_coords'].append({'lat': unit_results['geo_coords'].lat, 'lng': unit_results['geo_coords'].lng,
                                          'infobox': unit_results['address_features']['street_address'],
-                                         'icon': 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'})
+                                         'icon': icon_link})
 
         overall_results[unit_key] = unit_results
 
