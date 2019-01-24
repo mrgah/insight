@@ -11,10 +11,10 @@ from collections import namedtuple
 
 import re
 
-from .scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, zip_apt_scraper, \
+from scrape_n_class import get_geocode_coords, get_sidewalk_view, classify_image, zip_apt_scraper, \
                     scrape_zillow_data, get_3step_view, my_address_check, get_address_features, get_unit_dets
 import os
-from .config import flask_secret_key, geocode, zillow
+from config import flask_secret_key, geocode, zillow
 
 app = Flask(__name__, instance_path='/Users/mrgah/Dropbox/work/code/insight/goto_home/')
 app.config['SECRET_KEY'] = flask_secret_key
@@ -26,7 +26,7 @@ moment = Moment(app)
 
 Geocoords = namedtuple('Geocoords','lat lng')
 
-cache = FileSystemCache('cache', default_timeout=(60*60*24))
+# cache = FileSystemCache('cache', default_timeout=(60*60*24))
 
 class AddressForm(FlaskForm):
     # I'd like my custom address validator here, but it keeps throwing errors

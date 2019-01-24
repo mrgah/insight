@@ -21,6 +21,9 @@
     <ul style="list-style: none">
         {% for result in overall_results %}
         <li style="background-color: whitesmoke; padding: 15px; margin: 15px; max-width: 615px">
+        {% if ( ( overall_results[result]['3_steps_result'] is defined ) and
+                ( overall_results[result]['sidewalk_class_result'] is defined ) and
+                ( overall_results[result]['address_features'] is defined ) ) %}
             {% if overall_results[result]['3_steps_result'][0] == 'yes' %}
             <img style="max-width: 575px; alignment: center; " src="{{ url_for('static', filename = overall_results[result]['image_name'] ) }}" />
 
@@ -54,6 +57,7 @@
             </p>
 
             {% endif %}
+        {% endif %}
 
 
 

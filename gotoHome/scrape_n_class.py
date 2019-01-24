@@ -19,7 +19,7 @@ import re
 
 from pyzillow.pyzillow import ZillowWrapper, GetDeepSearchResults
 
-from .config import zillow, geocode, onboard_key
+from config import zillow, geocode, onboard_key
 
 Geocoords = namedtuple('Geocoords','lat lng')
 
@@ -216,7 +216,7 @@ def get_sidewalk_view(input_coords, image_path, address_features):
     geo_string = ','.join(map(str, input_coords))
     print(geo_string)
 
-    params = {'size':'1000x1000', 'location': geo_string , 'pitch': '-20', 'source':'outdoor'}
+    params = {'size':'1000x1000', 'location': geo_string , 'pitch': '-20', 'source':'outdoor', 'key': geocode}
 
     encoded_query = urlencode(params)
 
@@ -294,7 +294,7 @@ def classify_image(image_file,model_file,output_labels='output_labels.txt'):
     return result
 
 
-def zip_apt_scraper(zip, no_listing_pages=5):
+def zip_apt_scraper(zip, no_listing_pages=2):
 
     rentals = []
 
@@ -401,13 +401,23 @@ def get_unit_dets(address):
     results['geo_coords'] = get_geocode_coords(address)
 
     # this is a little clunky, but will be replaced
-    results['image_name'] = get_sidewalk_view(results['geo_coords'], 'static', results['address_features'])
+    try:
 
-    results['step_image_name'] = get_3step_view(results['geo_coords'], 'static', results['address_features'])
+        results['image_name'] = get_sidewalk_view(results['geo_coords'], 'static', results['address_features'])
 
-    img = results['image_name']
-    print("results['image_name']", results['image_name'])
-    image_path = os.path.join('static', img)
+        img = results['image_name']
+        print("results['image_name']", results['image_name'])
+        image_path = os.path.join('static', img)
+    except:
+        print("could not get image for", results['geo_coords'])
+        pass
+
+
+    try:
+        results['step_image_name'] = get_3step_view(results['geo_coords'], 'static', results['address_features'])
+    except:
+        print("could not get step image for", results['geo_coords'])
+        pass
 
     # results['blank_img'] = is_img_blank(image_path)
 
@@ -417,9 +427,12 @@ def get_unit_dets(address):
     # else:
 
     # tried to assess whether images where blank, but ended up in dependency hell (but see is_img_blank.ipynb)
-    results['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt').split(
+    try:
+        results['sidewalk_class_result'] = classify_image(image_path, 'sidewalk_graph.pb', 'sidewalk_labels.txt').split(
         ' ')
-    results['3_steps_result'] = classify_image(image_path, '3steps_graph.pb', '3steps_labels.txt').split(' ')
+        results['3_steps_result'] = classify_image(image_path, '3steps_graph.pb', '3steps_labels.txt').split(' ')
+    except:
+        print("could not classify non-existent image")
 
     try:
         results['access_grade'], results['access_label'] = assess_unit_accessibility(results)
@@ -519,5 +532,5 @@ def get_onboard_prop_details(input_address):
 
     return levels, proptype, yearbuilt
 
-results = {'address_features': {'street_address': '5825 Camerford Ave', 'city': 'Los Angeles', 'state': 'CA', 'zip': '90038'}, 'zillow_data': {'unit_type': 'Apartment', 'amenities': ['Elevator']}, 'levels': 0, 'proptype': None, 'yearbuilt': 0, 'geo_coords': Geocoords(lat=34.08465500000001, lng=-118.325435), 'image_name': '5825_Camerford_Ave_90038.jpg', 'step_image_name': 'size=1000x1000_location=34.08465500000001%2C-118.325435_pitch=-10_fov=50_source=outdoor.jpg', 'sidewalk_class_result': ['no', '0.8685633'], '3_steps_result': [''], 'access_grade': 'unknown', 'access_label': 'unknown'}
-print(assess_unit_accessibility(results))
+# results = {'address_features': {'street_address': '5825 Camerford Ave', 'city': 'Los Angeles', 'state': 'CA', 'zip': '90038'}, 'zillow_data': {'unit_type': 'Apartment', 'amenities': ['Elevator']}, 'levels': 0, 'proptype': None, 'yearbuilt': 0, 'geo_coords': Geocoords(lat=34.08465500000001, lng=-118.325435), 'image_name': '5825_Camerford_Ave_90038.jpg', 'step_image_name': 'size=1000x1000_location=34.08465500000001%2C-118.325435_pitch=-10_fov=50_source=outdoor.jpg', 'sidewalk_class_result': ['no', '0.8685633'], '3_steps_result': [''], 'access_grade': 'unknown', 'access_label': 'unknown'}
+# print(assess_unit_accessibility(results))
